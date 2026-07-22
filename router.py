@@ -5,8 +5,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Base URL where our live FastAPI service runs
 API_BASE = "http://localhost:8001"
 
+# -------------------------------------------------------------------
+# ROUTER OPTION 1: KEYWORD ROUTER (Fast & Free)
+# Checks if the question contains specific keywords.
+# -------------------------------------------------------------------
 KEYWORD_MAP = {
     "weather": ["weather", "rain", "storm", "delivery", "shipping"],
     "deals":   ["deal", "discount", "offer", "promo", "sale", "coupon"],
@@ -14,25 +19,32 @@ KEYWORD_MAP = {
 }
 
 def keyword_router(question: str) -> dict:
-    """Keyword-based routing (Fast & Free)."""
+    """If question has live data keywords -> call API. Else -> search FAISS database."""
     question_lower = question.lower()
-    matched = []
+    matched_apis = []
 
+    # Check if user asked for weather, deals, or stock
     for endpoint, keywords in KEYWORD_MAP.items():
         if any(kw in question_lower for kw in keywords):
-            matched.append(f"{API_BASE}/api/{endpoint}")
+            matched_apis.append(f"{API_BASE}/api/{endpoint}")
 
-    if matched:
-        return {"source": "api", "api_endpoints": matched}
+    if matched_apis:
+        return {"source": "api", "api_endpoints": matched_apis}
+    
+    # Default to static vector database
     return {"source": "faiss", "api_endpoints": []}
 
 
+# -------------------------------------------------------------------
+# ROUTER OPTION 2: LLM ROUTER (Smart Function Calling)
+# Asks the Groq AI model to choose which tool to use.
+# -------------------------------------------------------------------
 TOOLS = [
     {
         "type": "function",
         "function": {
             "name": "search_knowledge_base",
-            "description": "Search store policies, products, and company facts in FAISS.",
+            "description": "Search static store policies, products, and company info in FAISS.",
             "parameters": {"type": "object", "properties": {}, "required": []}
         }
     },
@@ -40,7 +52,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_weather",
-            "description": "Get current weather and shipping delay info.",
+            "description": "Check current weather and shipping delay status.",
             "parameters": {"type": "object", "properties": {}, "required": []}
         }
     },
@@ -48,7 +60,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_deals",
-            "description": "Get active promotions and discounts.",
+            "description": "Get today's active promo deals and discounts.",
             "parameters": {"type": "object", "properties": {}, "required": []}
         }
     },
@@ -56,7 +68,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "check_stock",
-            "description": "Check inventory availability for products.",
+            "description": "Check live product inventory availability.",
             "parameters": {"type": "object", "properties": {}, "required": []}
         }
     }
@@ -69,12 +81,12 @@ TOOL_TO_URL = {
 }
 
 def llm_router(question: str) -> dict:
-    """LLM Function Calling routing (Smart & Contextual)."""
+    """Uses Groq AI model to intelligently pick the tool."""
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     resp = client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=[
-            {"role": "system", "content": "Pick the correct tool for the user question."},
+            {"role": "system", "content": "Select the correct tool for the user question."},
             {"role": "user", "content": question}
         ],
         tools=TOOLS,
@@ -82,10 +94,10 @@ def llm_router(question: str) -> dict:
     )
 
     tool_calls = resp.choices[0].message.tool_calls or []
-    chosen = [tc.function.name for tc in tool_calls]
+    chosen_tools = [tc.function.name for tc in tool_calls]
 
-    endpoints = [TOOL_TO_URL[name] for name in chosen if name in TOOL_TO_URL]
-    use_faiss = "search_knowledge_base" in chosen
+    endpoints = [TOOL_TO_URL[name] for name in chosen_tools if name in TOOL_TO_URL]
+    use_faiss = "search_knowledge_base" in chosen_tools
 
     if use_faiss and endpoints:
         return {"source": "both", "api_endpoints": endpoints}
@@ -94,7 +106,11 @@ def llm_router(question: str) -> dict:
     return {"source": "faiss", "api_endpoints": []}
 
 
+# -------------------------------------------------------------------
+# HELPER: Make HTTP GET call to live APIs
+# -------------------------------------------------------------------
 def fetch_api_data(endpoints: list) -> list:
+    """Calls external API endpoints and returns their JSON data."""
     results = []
     with httpx.Client(timeout=5.0) as client:
         for url in endpoints:

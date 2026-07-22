@@ -12,19 +12,23 @@ load_dotenv()
 INDEX_PATH = "faiss_store/index.faiss"
 METADATA_PATH = "faiss_store/metadata.json"
 
+# Load FAISS index and metadata mappings from disk
 index = faiss.read_index(INDEX_PATH)
 with open(METADATA_PATH, encoding="utf-8") as f:
     metadata = json.load(f)
 
+# Load local embedding AI model and initialize Groq client
 model = SentenceTransformer("all-MiniLM-L6-v2")
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 def search_faiss(question: str, top_k: int = 3) -> list[str]:
+    """Converts question to numbers and searches FAISS for the Top-3 closest text matches."""
     query_vector = np.array(model.encode([question]), dtype=np.float32)
     _, indices = index.search(query_vector, top_k)
     return [f"[{metadata[i]['source']}] {metadata[i]['content']}" for i in indices[0] if i != -1]
 
 def generate_answer(question: str, context_chunks: list[str]) -> str:
+    """Sends context + user question to Groq LLM to build a grounded answer."""
     context_text = "\n".join(context_chunks) if context_chunks else "No context found."
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
@@ -49,21 +53,26 @@ def main():
         if question.lower() in ("quit", "exit"):
             break
 
+        # 1. Decide where to search (FAISS, API, or both)
         routing = keyword_router(question)
         source = routing["source"]
         print(f"[Router] Target: {source.upper()}")
 
         context = []
+        
+        # 2a. Search static FAISS vector store if needed
         if source in ("faiss", "both"):
             faiss_res = search_faiss(question)
             context.extend(faiss_res)
 
+        # 2b. Call live API endpoint if needed
         if source in ("api", "both"):
             api_res = fetch_api_data(routing["api_endpoints"])
             for res in api_res:
                 if "data" in res:
                     context.append(f"[Live API] {json.dumps(res['data'])}")
 
+        # 3. Generate answer using retrieved context
         answer = generate_answer(question, context)
         print(f"Bot: {answer}\n")
 
