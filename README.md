@@ -1,8 +1,8 @@
-# ⚡ ShopEase RAG Chatbot
+# ⚡ FAISS-RAG: Multi-Source Retrieval-Augmented Generation with Hybrid REST Router
 
-An end-to-end **Retrieval-Augmented Generation (RAG)** system built with **FAISS**, **FastAPI**, **Sentence-Transformers**, and **Groq (Llama-3.1-8B)**.
+A production-grade, local **Retrieval-Augmented Generation (RAG)** architecture featuring a **FAISS** vector search engine, **FastAPI** dynamic microservices, and **Groq (Llama-3.1-8B)** answer synthesis. 
 
-Designed to dynamically route user queries between a static vector store (FAISS) and live dynamic microservices (FastAPI REST endpoints).
+Designed to demonstrate semantic document search over structured/unstructured datasets alongside dynamic REST API routing.
 
 ---
 
@@ -24,7 +24,7 @@ Designed to dynamically route user queries between a static vector store (FAISS)
              v                                             v
 +------------+------------+                   +------------+------------+
 |   FAISS Vector Store    |                   |   FastAPI Live REST APIs   |
-| (Static Knowledge Base) |                   |  (Dynamic & Live Data)     |
+| (Static Knowledge Base) |                   |  (Dynamic & Temporal Data) |
 +------------+------------+                   +------------+------------+
   - Plain Text (docs.txt)                       - /api/weather
   - CSV (products.csv)                          - /api/deals
@@ -50,109 +50,105 @@ Designed to dynamically route user queries between a static vector store (FAISS)
 
 ---
 
-## ✨ Features
+## ✨ Core Features
 
-- **Multi-Source Data Ingestion**: Ingests plain text, CSV, and JSON files, converting structured and unstructured text into 384-dimensional vector embeddings (`all-MiniLM-L6-v2`).
-- **FAISS Vector Search**: Uses `IndexFlatL2` for 100% exact semantic similarity matching without trade-offs.
-- **Dynamic REST APIs**: Simulates live microservices (`/api/weather`, `/api/deals`, `/api/stock`) via FastAPI for temporal data.
-- **Dual Query Routing**:
-  - **Keyword Router**: Lightweight, zero-latency, deterministic routing.
-  - **LLM Function-Calling Router**: Contextual tool-use selection via Groq API.
-- **Grounded Answer Generation**: Strictly constrains the Groq LLM to retrieved context, preventing hallucinations.
+- **Multi-Source Heterogeneous Ingestion**: Ingests plain text, CSV tabular data, and JSON key-value records, mapping them into a unified 384-dimensional embedding space using `sentence-transformers` (`all-MiniLM-L6-v2`).
+- **FAISS Vector Engine**: Implements `IndexFlatL2` Euclidean distance matching for 100% search accuracy without approximate indexing trade-offs.
+- **Dynamic REST Service Layer**: Mocked microservices built on **FastAPI** (`/api/weather`, `/api/deals`, `/api/stock`) representing temporal, non-vectorizable data.
+- **Dual Query Routing Pipeline**:
+  - **Deterministic Keyword Router**: $<1\text{ms}$ execution time with zero token overhead.
+  - **LLM Function-Calling Router**: Semantic tool selection using Groq's open function-calling specification.
+- **Grounded LLM Generation**: Constrains answer generation strictly to retrieved context buffers to eliminate model hallucination.
 
 ---
 
-## 📂 Project Structure
+## 📂 Repository Structure
 
 ```
 FAISS-RAG/
 ├── data/
-│   ├── docs.txt         # Store policies & FAQs
-│   ├── products.csv     # Product catalog & pricing
-│   └── data.json        # Company background & facts
+│   ├── docs.txt         # Plain text policies & documentation
+│   ├── products.csv     # Structured tabular catalog
+│   └── data.json        # Key-value corporate metadata
 ├── faiss_store/
-│   ├── index.faiss      # Binary vector index
-│   └── metadata.json    # Vector-to-chunk metadata mapping
+│   ├── index.faiss      # Serialized FAISS binary index
+│   └── metadata.json    # Vector ID to document chunk mapping
 ├── apis/
-│   └── university_apis.py  # FastAPI live data endpoints
-├── ingest.py            # FAISS vector ingestion pipeline
-├── router.py            # Keyword & LLM function-calling routing logic
-├── chat.py              # Main interactive CLI chatbot interface
-├── test_pipeline.py     # End-to-end integration test script
-├── .env                 # API Key Configuration
-├── README.md            # Comprehensive Documentation
-└── requirements.txt     # Python Dependencies
+│   └── university_apis.py  # FastAPI dynamic REST endpoints
+├── ingest.py            # Heterogeneous data parser & FAISS builder
+├── router.py            # Keyword & LLM tool-calling routing logic
+├── chat.py              # Interactive CLI RAG execution loop
+├── test_pipeline.py     # End-to-end integration test runner
+├── .env                 # API configuration (git-ignored)
+├── README.md            # Architecture & technical documentation
+└── requirements.txt     # Dependency definitions
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quickstart
 
-### 1. Clone the Repository
+### 1. Clone & Install
 ```bash
 git clone https://github.com/Nishchalpr4/FAISS-RAG.git
 cd FAISS-RAG
-```
-
-### 2. Install Dependencies
-```bash
 pip install -r requirements.txt
 ```
 
-### 3. Environment Configuration
+### 2. Configure API Keys
 Create a `.env` file in the root directory:
 ```env
 GROQ_API_KEY=your_groq_api_key_here
 ```
 
-### 4. Build Vector Index
-Ingest dataset into FAISS vector store:
+### 3. Ingest Data & Build FAISS Index
 ```bash
 python ingest.py
 ```
 
 ---
 
-## 💻 Running the System
+## 💻 Execution Workflow
 
-### Step 1: Start the REST API Microservice
+### 1. Launch REST Microservices
 ```bash
 python -m uvicorn apis.university_apis:app --port 8001
 ```
 
-### Step 2: Start the Chatbot CLI
+### 2. Launch RAG Pipeline
 ```bash
 python chat.py
 ```
 
 ---
 
-## 🎯 Example Query Routing
+## 🎯 Query Routing Execution Matrix
 
-| User Question | Source Routed | Reason |
+| User Query Pattern | Targeted System | Architectural Rationale |
 |---|---|---|
-| *"What is your return policy?"* | **FAISS** | Matches static store policy |
-| *"What headphones do you sell?"* | **FAISS** | Matches product catalog |
-| *"Who is the CEO of ShopEase?"* | **FAISS** | Matches corporate metadata |
-| *"Are there any deals today?"* | **API** | Hits dynamic `/api/deals` endpoint |
-| *"Will rain delay my delivery?"* | **API** | Hits live `/api/weather` endpoint |
-| *"Is the webcam in stock?"* | **API** | Hits warehouse `/api/stock` endpoint |
+| *"What is your return policy?"* | **FAISS Store** | Semantic retrieval from static unstructured text (`docs.txt`) |
+| *"What headphones do you sell?"* | **FAISS Store** | Semantic retrieval from tabular product dataset (`products.csv`) |
+| *"Who is the CEO?"* | **FAISS Store** | Key-value attribute matching from metadata (`data.json`) |
+| *"Are there any deals today?"* | **REST API** | Dynamic lookup against dynamic `/api/deals` endpoint |
+| *"Will rain delay my delivery?"* | **REST API** | Real-time query against temporal `/api/weather` endpoint |
+| *"Is the webcam in stock?"* | **REST API** | Inventory state check against `/api/stock` endpoint |
 
 ---
 
-## 📊 Technical Architecture & Trade-Offs
+## 📊 Deep-Dive Architectural Trade-Offs
 
-### 1. Vector Index Choice: FAISS `IndexFlatL2`
-- **Choice**: Exact Euclidean distance comparison over all stored vectors.
-- **Trade-off**: `IndexFlatL2` operates in $O(N)$ query time. While approximate indexes like **IVF** or **HNSW** offer $O(\log N)$ scalability for millions of vectors, `IndexFlatL2` guarantees 100% search accuracy with zero index tuning overhead for small-to-medium scale datasets.
+### 1. FAISS `IndexFlatL2` Indexing
+- **Mechanism**: Calculates exact $L_2$ (Euclidean) distance across all dense vectors:
+  $$D(y, x) = \sum_{i=1}^{d} (y_i - x_i)^2$$
+- **Engineering Trade-off**: Operates in linear $O(N \cdot d)$ space/time complexity. Unlike approximate nearest neighbor algorithms (**IVF**, **HNSW**), `IndexFlatL2` guarantees zero recall loss, making it optimal for precision-critical datasets under $10^5$ vectors.
 
-### 2. Embeddings Model: `all-MiniLM-L6-v2`
-- **Choice**: Lightweight local model producing 384-dimensional dense vectors.
-- **Trade-off**: Operates locally with zero latency or API costs. Offers high semantic accuracy without reliance on third-party cloud embedding APIs.
+### 2. Local Dense Embeddings vs API-based Models
+- **Mechanism**: Utilizes `all-MiniLM-L6-v2` generating 384-dimensional vector spaces.
+- **Engineering Trade-off**: Runs fully locally with zero network I/O overhead and zero cost per query, avoiding third-party rate limits while retaining high semantic retrieval performance.
 
-### 3. Routing Strategy: Keyword vs LLM Function-Calling
-- **Keyword Router**: Executes in $<1\text{ms}$ with zero API cost. Best for deterministic trigger matching.
-- **LLM Function Calling**: Better handles paraphrased input, but incurs network latency (~300-500ms) and token overhead per call.
+### 3. Deterministic Routing vs Function-Calling LLM Routing
+- **Rule-based Keyword Router**: Sub-millisecond execution, deterministic outcome, zero cost.
+- **LLM Function Calling**: Understands rich semantic intent (e.g., *"Is it pouring outside?"* $\rightarrow$ `/api/weather`), but introduces $\sim 300\text{--}500\text{ms}$ latency and LLM token overhead.
 
 ---
 
