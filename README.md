@@ -112,7 +112,7 @@ python ingest.py
 
 ### 1. Launch REST Microservices
 ```bash
-python -m uvicorn apis.university_apis:app --port 8001
+python -m uvicorn apis/main.py:app --port 8001
 ```
 
 ### 2. Launch RAG Pipeline
